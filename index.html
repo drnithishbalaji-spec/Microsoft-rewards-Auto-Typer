@@ -1,0 +1,242 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bing Rewards Auto-Typer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Consolas&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.3)), url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=2070');
+            background-size: cover;
+            background-position: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Top Bing Search Bar Simulation */
+        .search-area {
+            margin-top: 10vh;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .bing-title {
+            color: white;
+            font-size: 72px;
+            font-weight: 800;
+            margin-bottom: 25px;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        .input-box {
+            background: white;
+            height: 54px;
+            border-radius: 27px;
+            display: flex;
+            align-items: center;
+            padding: 0 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        #searchInput {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 18px;
+            color: #333;
+        }
+
+        /* Notepad Window - Matches Image */
+        .notepad-window {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            height: 420px;
+            background: white;
+            border: 1px solid #999;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            z-index: 50;
+        }
+
+        .notepad-header {
+            height: 34px;
+            padding: 0 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .notepad-content {
+            flex: 1;
+            padding: 15px;
+            font-family: 'Consolas', monospace;
+            font-size: 16px;
+            color: #1a1a1a;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            outline: none;
+        }
+
+        /* Floating Controller Bar - Matches your screenshot exactly */
+        .status-bar {
+            position: fixed;
+            bottom: 40px;
+            left: 40px;
+            background: rgba(26, 26, 26, 0.98);
+            padding: 12px 20px;
+            border-radius: 60px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 1000;
+        }
+
+        .light-indicator {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #ff4d4d;
+        }
+
+        .light-active {
+            background: #4df33b;
+            box-shadow: 0 0 10px #4df33b;
+        }
+
+        .start-button {
+            background: #0078d4;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .start-button.stop {
+            background: #d83b01;
+        }
+
+        .rewards-badge {
+            background: #ffb900;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 800;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="search-area">
+        <div class="bing-title">Bing</div>
+        <div class="input-box">
+            <input type="text" id="searchInput" placeholder="Search to earn rewards..." readonly>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0078d4" stroke-width="3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+    </div>
+
+    <!-- Notepad Window -->
+    <div class="notepad-window">
+        <div class="notepad-header">
+            <span>AutoTyper.txt - Notepad</span>
+            <div class="flex gap-3"><span>—</span><span>⬜</span><span class="text-red-500">✕</span></div>
+        </div>
+        <div class="px-3 py-1 border-b text-[11px] flex gap-3 text-gray-500 bg-gray-50">
+            <span>File</span><span>Edit</span><span>Format</span><span>View</span>
+        </div>
+        <div id="textPad" class="notepad-content"></div>
+    </div>
+
+    <!-- Activation Bar -->
+    <div class="status-bar">
+        <div id="light" class="light-indicator"></div>
+        <div class="flex flex-col">
+            <div class="flex items-center">
+                <span id="statusLabel" class="text-white font-bold text-lg">Extension Idle</span>
+                <span class="rewards-badge">REWARDS</span>
+            </div>
+            <span class="text-gray-400 text-xs">Points progress: <span id="points">0</span> / 150</span>
+        </div>
+        <button id="toggleBtn" class="start-button">Start Auto-Type</button>
+    </div>
+
+    <script>
+        const words = ["FIRE", "GOLD", "BLUE", "WIND", "STAY", "KIND", "DARK", "PLAY", "RAIN", "SNOW", "GLOW", "MOON", "FISH", "BIRD", "SAFE", "FAST", "COOL", "SOFT", "PURE", "TIME"];
+        
+        const searchInput = document.getElementById('searchInput');
+        const textPad = document.getElementById('textPad');
+        const toggleBtn = document.getElementById('toggleBtn');
+        const light = document.getElementById('light');
+        const statusLabel = document.getElementById('statusLabel');
+        const pointsDisplay = document.getElementById('points');
+
+        let isRunning = false;
+        let points = 0;
+
+        async function startTyping() {
+            while (isRunning) {
+                const word = words[Math.floor(Math.random() * words.length)];
+                searchInput.value = "";
+                
+                // Typing effect
+                for (let char of word) {
+                    if (!isRunning) break;
+                    searchInput.value += char;
+                    textPad.innerText += char;
+                    textPad.scrollTop = textPad.scrollHeight;
+                    await new Promise(r => setTimeout(r, 100 + Math.random() * 50));
+                }
+
+                if (isRunning) {
+                    textPad.innerText += "\n";
+                    points += 5;
+                    pointsDisplay.innerText = points > 150 ? 150 : points;
+                    await new Promise(r => setTimeout(r, 1500)); // Pause for "points registration"
+                }
+            }
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            isRunning = !isRunning;
+            if (isRunning) {
+                toggleBtn.innerText = "Stop Auto-Type";
+                toggleBtn.classList.add('stop');
+                light.classList.add('light-active');
+                statusLabel.innerText = "Extension Active";
+                startTyping();
+            } else {
+                toggleBtn.innerText = "Start Auto-Type";
+                toggleBtn.classList.remove('stop');
+                light.classList.remove('light-active');
+                statusLabel.innerText = "Extension Idle";
+            }
+        });
+    </script>
+</body>
+</html>
+
+```
