@@ -1,0 +1,291 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bing Auto-Typer Extension</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Consolas&display=swap');
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* Full Screen Bing Simulation */
+        .bing-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&q=80&w=2070') center/cover;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .bing-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.1);
+            z-index: 1;
+        }
+
+        .search-container {
+            position: relative;
+            z-index: 10;
+            margin-top: 15vh;
+            width: 90%;
+            max-width: 580px;
+            text-align: center;
+        }
+
+        .bing-logo {
+            color: white;
+            font-size: 64px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        .search-bar {
+            background: white;
+            height: 50px;
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        #searchBox {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 18px;
+            margin-left: 10px;
+        }
+
+        /* Floating Notepad Window */
+        .notepad-window {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 320px;
+            height: 380px;
+            background: white;
+            border: 1px solid #999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        .notepad-header {
+            background: #ffffff;
+            height: 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            border-bottom: 1px solid #eee;
+            cursor: move;
+        }
+
+        .notepad-body {
+            flex: 1;
+            padding: 10px;
+            font-family: 'Consolas', monospace;
+            font-size: 15px;
+            outline: none;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        /* Controller Pill - Placed at the top for easy access */
+        .status-pill {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.9);
+            padding: 8px 15px;
+            border-radius: 40px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ff4d4d;
+        }
+
+        .dot.active {
+            background: #4df33b;
+            box-shadow: 0 0 8px #4df33b;
+        }
+
+        .btn-active {
+            background: #3b82f6;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Controller -->
+    <div class="status-pill">
+        <div id="statusDot" class="dot"></div>
+        <span id="statusText">Extension Idle</span>
+        <button id="startBtn" class="btn-active">Start Auto-Type</button>
+    </div>
+
+    <!-- The Simulator Interface -->
+    <div class="bing-screen">
+        <div class="bing-overlay"></div>
+        
+        <!-- Bing Search Simulation -->
+        <div class="search-container">
+            <div class="bing-logo">Bing</div>
+            <div class="search-bar">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0078d4" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="searchBox" placeholder="Search the web" readonly>
+            </div>
+        </div>
+
+        <!-- Notepad Extension Window -->
+        <div id="notepad" class="notepad-window">
+            <div class="notepad-header" id="dragZone">
+                <span>AutoTyper.txt - Notepad</span>
+                <div class="flex gap-2"><span>—</span><span>□</span><span class="text-red-500">✕</span></div>
+            </div>
+            <div class="p-1 border-b text-[10px] flex gap-2 text-gray-600">
+                <span>File</span><span>Edit</span><span>Format</span><span>View</span>
+            </div>
+            <div id="notepadContent" class="notepad-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchBox = document.getElementById('searchBox');
+        const notepadContent = document.getElementById('notepadContent');
+        const startBtn = document.getElementById('startBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const notepad = document.getElementById('notepad');
+        const dragZone = document.getElementById('dragZone');
+
+        const words = ["FIRE", "BLUE", "WIND", "GOLD", "STAY", "KIND", "DARK", "PLAY", "ROCK", "SNOW", "TIME", "GLOW", "MOON", "RAIN", "FISH", "FAST", "BIRD", "COOL", "SOFT", "PURE"];
+        
+        let isRunning = false;
+
+        async function typeAction(text) {
+            // Simulate typing into BOTH the search bar and the notepad
+            searchBox.value = "";
+            for (let i = 0; i < text.length; i++) {
+                if (!isRunning) return;
+                
+                const char = text[i];
+                searchBox.value += char;
+                notepadContent.innerText += char;
+                
+                // Human typing speed variance
+                await new Promise(r => setTimeout(r, 100 + Math.random() * 50));
+            }
+            
+            if (isRunning) {
+                notepadContent.innerText += "\n";
+                await new Promise(r => setTimeout(r, 1000));
+                searchBox.value = ""; // Clear for next word
+            }
+        }
+
+        async function mainLoop() {
+            while (isRunning) {
+                const word = words[Math.floor(Math.random() * words.length)];
+                await typeAction(word);
+            }
+        }
+
+        startBtn.addEventListener('click', () => {
+            isRunning = !isRunning;
+            if (isRunning) {
+                startBtn.innerText = "Stop Typing";
+                startBtn.classList.replace('bg-blue-500', 'bg-red-500');
+                statusDot.classList.add('active');
+                statusText.innerText = "Extension Active";
+                mainLoop();
+            } else {
+                startBtn.innerText = "Start Auto-Type";
+                startBtn.classList.replace('bg-red-500', 'bg-blue-500');
+                statusDot.classList.remove('active');
+                statusText.innerText = "Extension Idle";
+            }
+        });
+
+        // Make Notepad Draggable
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+
+        dragZone.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            offset.x = e.clientX - notepad.offsetLeft;
+            offset.y = e.clientY - notepad.offsetTop;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                notepad.style.left = (e.clientX - offset.x) + 'px';
+                notepad.style.top = (e.clientY - offset.y) + 'px';
+                notepad.style.right = 'auto';
+            }
+        });
+
+        document.addEventListener('mouseup', () => isDragging = false);
+
+        // Mobile touch support for dragging
+        dragZone.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            const touch = e.touches[0];
+            offset.x = touch.clientX - notepad.offsetLeft;
+            offset.y = touch.clientY - notepad.offsetTop;
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (isDragging) {
+                const touch = e.touches[0];
+                notepad.style.left = (touch.clientX - offset.x) + 'px';
+                notepad.style.top = (touch.clientY - offset.y) + 'px';
+                notepad.style.right = 'auto';
+            }
+        });
+
+        document.addEventListener('touchend', () => isDragging = false);
+    </script>
+</body>
+</html>
+
+```
